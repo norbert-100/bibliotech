@@ -109,11 +109,11 @@ Le `HealthServlet` utilise la connexion PostgreSQL et exécute la requête :
 ```sql
 SELECT version()
 ```
-
+on a tapé sur le navigateur ce http://localhost:8080/bibliotech/health
 Lorsque la connexion fonctionne, le résultat obtenu est de la forme :
 
 ```text
-OK · PostgreSQL 17.11 ...
+OK · PostgreSQL 17.11 on x86_64-windows, compiled by msvc-19.44.35228, 64-bit
 ```
 
 En cas d'erreur de connexion, le servlet retourne :
