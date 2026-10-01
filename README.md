@@ -2,7 +2,7 @@
 
 Projet réalisé dans le cadre du TP 01 BiblioTech.
 
-## Stack technique
+## 🛠️ Stack technique
 
 * Java 21
 * Jakarta EE 10
@@ -12,6 +12,16 @@ Projet réalisé dans le cadre du TP 01 BiblioTech.
 * PostgreSQL JDBC 42.7.13
 * Eclipse IDE
 * pgAdmin 4
+
+---
+##🧱 Modèle de données — schéma cible
+
+<img width="472" height="454" alt="image" src="https://github.com/user-attachments/assets/5132088e-66de-4ff4-bb14-0f48ab609436" />
+
+---
+## 📐 Architecture cible
+
+<img width="858" height="290" alt="image" src="https://github.com/user-attachments/assets/b8b0c2bf-0f27-4f96-9ccc-c18fce4c91a1" />
 
 ---
 
