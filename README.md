@@ -25,28 +25,45 @@ Projet réalisé dans le cadre du TP 01 BiblioTech.
 
 ---
 
-# Structure du projet
-
-```text
+# Arborescence principale
 bibliotech/
-├── .gitignore
-├── README.md
+│
+├── sql/
+│   └── schema.sql
+│
+├── src/
+│   └── main/
+│       ├── java/
+│       │   └── com/
+│       │       └── bibliotech/
+│       │           ├── LivreServlet.java
+│       │           ├── EmpruntServlet.java
+│       │           │
+│       │           ├── dao/
+│       │           │   ├── GenericDAO.java
+│       │           │   ├── LivreDAO.java
+│       │           │   ├── EmpruntDAO.java
+│       │           │   └── LivreIndisponibleException.java
+│       │           │
+│       │           ├── model/
+│       │           │   ├── Livre.java
+│       │           │   ├── Etudiant.java
+│       │           │   ├── Emprunt.java
+│       │           │   └── StatutEmprunt.java
+│       │           │
+│       │           └── util/
+│       │               └── PenaliteCalculator.java
+│       │
+│       └── webapp/
+│           └── WEB-INF/
+│               ├── web.xml
+│               └── livres/
+│                   ├── list.jsp
+│                   ├── form.jsp
+│                   └── detail.jsp
+│
 ├── pom.xml
-└── src/
-    └── main/
-        ├── java/
-        │   └── com/
-        │       └── bibliotech/
-        │           ├── HealthServlet.java
-        │           └── dao/
-        │               └── DatabaseConnection.java
-        │
-        └── webapp/
-            ├── WEB-INF/
-            │   └── web.xml
-            └── index.jsp
-```
-
+└── README.md
 ---
 
 # Partie 0 — Mise en place
@@ -277,5 +294,728 @@ Le `switch` utilise directement les Records de `StatutEmprunt` avec le pattern m
 Le `switch` traite ces trois possibilités. Le compilateur peut donc vérifier que tous les cas sont couverts, sans avoir besoin d'un `default`.
 
 Si une nouvelle implémentation `Perdu` était ajoutée à `StatutEmprunt`, le `switch` ne couvrirait plus tous les cas. Le compilateur signalerait alors que le `switch` n'est plus exhaustif et qu'il faut traiter le nouveau cas.
+# Partie B — Couche Web Servlet + MVC
+
+Cette partie met en œuvre le modèle MVC avec les Servlets, les JSP et JSTL.
+
+L'objectif est de séparer les responsabilités :
+
+* les Servlets gèrent les requêtes HTTP ;
+* les DAO gèrent l'accès aux données ;
+* les JSP affichent les données ;
+* aucune logique Java n'est écrite directement dans les JSP.
+
+---
+
+## B.1 — Servlets et routing par méthode HTTP
+
+Deux Servlets sont présents dans l'application :
+
+* `LivreServlet`
+* `EmpruntServlet`
+
+### `LivreServlet`
+
+Le Servlet est situé dans :
+
+```text
+src/main/java/com/bibliotech/LivreServlet.java
+```
+
+Il est associé à :
+
+```java
+@WebServlet("/livres/*")
+```
+
+Il gère les opérations demandées sur les livres.
+
+### Routes utilisées
+
+| Méthode | URL                   | Action                                 |
+| ------- | --------------------- | -------------------------------------- |
+| GET     | `/livres`             | Afficher la liste des livres           |
+| GET     | `/livres/{id}`        | Afficher le détail d'un livre          |
+| GET     | `/livres/nouveau`     | Afficher le formulaire de création     |
+| POST    | `/livres`             | Créer un livre                         |
+| GET     | `/livres/{id}/edit`   | Afficher le formulaire de modification |
+| POST    | `/livres/{id}`        | Modifier un livre                      |
+| POST    | `/livres/{id}/delete` | Supprimer un livre                     |
+
+Le Servlet utilise `request.getPathInfo()` pour déterminer la partie de l'URL demandée et effectuer l'action correspondante.
+
+### Liste des livres
+
+Avec :
+
+```text
+GET /livres
+```
+
+le Servlet récupère les livres avec `LivreDAO.findAll()` puis transmet la liste à la JSP avec :
+
+```java
+request.setAttribute("livres", livreDAO.findAll());
+```
+
+La JSP `list.jsp` affiche ensuite les livres.
+
+### Détail d'un livre
+
+Avec :
+
+```text
+GET /livres/{id}
+```
+
+le Servlet récupère l'identifiant et recherche le livre avec :
+
+```java
+livreDAO.findById(id)
+```
+
+Le livre est ensuite transmis à `detail.jsp`.
+
+### Création
+
+Avec :
+
+```text
+GET /livres/nouveau
+```
+
+le formulaire de création est affiché.
+
+Lorsque l'utilisateur valide le formulaire :
+
+```text
+POST /livres
+```
+
+le Servlet récupère les valeurs, crée un `Livre` et appelle :
+
+```java
+livreDAO.save(livre);
+```
+
+### Modification
+
+Le formulaire de modification est accessible avec :
+
+```text
+GET /livres/{id}/edit
+```
+
+Les informations existantes du livre sont chargées dans le formulaire.
+
+Après validation :
+
+```text
+POST /livres/{id}
+```
+
+le Servlet crée le nouveau `Livre` avec l'identifiant correspondant et appelle :
+
+```java
+livreDAO.update(id, livre);
+```
+
+### Suppression
+
+La suppression utilise :
+
+```text
+POST /livres/{id}/delete
+```
+
+Le Servlet appelle :
+
+```java
+livreDAO.delete(id);
+```
+
+Puis redirige vers la liste.
+
+### `EmpruntServlet`
+
+Le Servlet est situé dans :
+
+```text
+src/main/java/com/bibliotech/EmpruntServlet.java
+```
+
+Il est associé à :
+
+```java
+@WebServlet("/emprunts/*")
+```
+
+Il est prévu pour gérer les opérations liées aux emprunts, notamment la consultation des emprunts et le retour d'un livre.
+
+---
+
+### Q B.1 — Pourquoi le HTML standard ne supporte que GET et POST côté formulaire ?
+
+Les formulaires HTML standards permettent principalement d'utiliser les méthodes `GET` et `POST`.
+
+Les méthodes comme `PUT`, `PATCH` ou `DELETE` ne sont pas directement disponibles avec l'attribut `method` d'un formulaire HTML classique.
+
+Pour utiliser ces méthodes, il faudrait par exemple utiliser JavaScript ou une API spécifique.
+
+Dans BiblioTech, les requêtes `GET` sont utilisées pour consulter les ressources et les requêtes `POST` pour les opérations qui modifient les données.
+
+---
+
+## B.2 — JSP avec JSTL
+
+Les vues des livres sont situées dans :
+
+```text
+src/main/webapp/WEB-INF/livres/
+```
+
+Trois JSP ont été créées :
+
+```text
+list.jsp
+form.jsp
+detail.jsp
+```
+
+### `list.jsp`
+
+Cette JSP affiche la liste des livres sous forme de tableau.
+
+Les colonnes affichées sont :
+
+* Titre ;
+* Auteur ;
+* Année ;
+* Disponibles ;
+* Actions.
+
+Les actions disponibles sont :
+
+* Détail ;
+* Modifier ;
+* Supprimer.
+
+Un bouton **Ajouter un livre** permet également d'accéder au formulaire de création.
+
+### `form.jsp`
+
+La même JSP est utilisée pour :
+
+* la création d'un livre ;
+* la modification d'un livre.
+
+Le formulaire adapte son action selon qu'il s'agit d'une création ou d'une modification.
+
+### `detail.jsp`
+
+Cette JSP affiche les informations détaillées d'un livre :
+
+* titre ;
+* auteur ;
+* année de publication ;
+* nombre total d'exemplaires ;
+* nombre d'exemplaires disponibles.
+
+Un bouton permet de revenir à la liste.
+
+### Utilisation de JSTL
+
+Les JSP utilisent JSTL :
+
+```jsp
+<%@ taglib uri="jakarta.tags.core" prefix="c" %>
+```
+
+La JSP `form.jsp` utilise également les fonctions JSTL :
+
+```jsp
+<%@ taglib uri="jakarta.tags.functions" prefix="fn" %>
+```
+
+Aucun scriptlet Java `<% %>` n'est utilisé dans les JSP.
+
+Les valeurs dynamiques sont affichées avec `c:out`.
+
+Par exemple :
+
+```jsp
+<c:out value="${livre.titre()}" />
+```
+
+Comme `Livre` est un Record Java, les accesseurs utilisés dans les JSP sont :
+
+```text
+livre.titre()
+livre.auteur()
+livre.anneePublication()
+livre.exemplairesDisponibles()
+```
+
+### Échappement des valeurs
+
+Dans `form.jsp`, les valeurs saisies précédemment sont également échappées avec :
+
+```jsp
+${fn:escapeXml(titre)}
+```
+
+Cela permet d'éviter d'insérer directement une valeur utilisateur non échappée dans le HTML.
+
+---
+
+### Q B.2 — Quelle est la différence entre `${livre.titre}` et `<c:out value="${livre.titre}" />` ?
+
+`${livre.titre}` est une expression EL qui permet d'insérer directement une valeur dans la page.
+
+Avec :
+
+```jsp
+${livre.titre}
+```
+
+la valeur est insérée directement dans le contenu HTML.
+
+Avec :
+
+```jsp
+<c:out value="${livre.titre}" />
+```
+
+JSTL affiche la valeur en effectuant par défaut un échappement XML/HTML.
+
+Par exemple, si une valeur contient :
+
+```html
+<script>alert('XSS')</script>
+```
+
+`c:out` transforme les caractères HTML afin que le contenu soit affiché comme du texte et non interprété comme du code HTML.
+
+Dans BiblioTech, les valeurs dynamiques affichées dans les JSP utilisent donc `c:out`.
+
+---
+
+## B.3 — Pattern Post-Redirect-Get
+
+Après une création, une modification ou une suppression réussie, le Servlet utilise :
+
+```java
+response.sendRedirect(request.getContextPath() + "/livres");
+```
+
+Le navigateur reçoit alors une réponse de redirection HTTP et effectue une nouvelle requête `GET` vers :
+
+```text
+/livres
+```
+
+Le formulaire n'est donc pas renvoyé lors d'un rafraîchissement de la page.
+
+Le pattern utilisé est :
+
+```text
+POST
+  ↓
+Traitement de l'opération
+  ↓
+HTTP 302
+  ↓
+GET /livres
+```
+
+Ce mécanisme a été testé après les opérations de création, modification et suppression.
+
+---
+
+### Q B.3 — Que se passe-t-il si le PRG est oublié après un INSERT ?
+
+Si le Servlet fait directement un `forward` après l'INSERT, le navigateur reste sur une requête `POST`.
+
+Si l'utilisateur actualise la page avec F5, le navigateur peut renvoyer la même requête `POST`.
+
+L'INSERT peut alors être exécuté une nouvelle fois et créer un doublon dans la base de données.
+
+Le pattern Post-Redirect-Get évite ce problème en redirigeant le navigateur vers `/livres` après le traitement réussi.
+
+---
+
+## B.4 — Validation et messages d'erreur
+
+La validation des formulaires est réalisée dans `LivreServlet`.
+
+Avant de créer ou modifier un livre, les valeurs reçues sont vérifiées.
+
+Les champs contrôlés sont :
+
+* titre ;
+* auteur ;
+* année de publication ;
+* exemplaires total ;
+* exemplaires disponibles.
+
+### Champs obligatoires
+
+Le Servlet vérifie que les champs ne sont pas vides.
+
+Par exemple :
+
+```java
+if (titre == null || titre.isEmpty()) {
+    errors.put("titre", "Le titre ne doit pas être vide");
+}
+```
+
+### Validation métier
+
+Le Record `Livre` réalise également les validations métier.
+
+Par exemple, une année invalide provoque :
+
+```text
+Année de publication invalide
+```
+
+Le nombre d'exemplaires disponibles ne peut pas dépasser le nombre total.
+
+Dans ce cas, le message est :
+
+```text
+Le nombre d'exemplaires disponibles ne peut pas dépasser le total
+```
+
+Le Servlet attrape l'exception :
+
+```java
+catch (IllegalArgumentException e)
+```
+
+puis transmet le message à la JSP avec l'attribut :
+
+```text
+errors
+```
+
+### Conservation des valeurs
+
+En cas d'erreur, le formulaire est réaffiché avec les valeurs précédemment saisies.
+
+Les messages d'erreur sont affichés sous les champs concernés.
+
+### Tests réalisés
+
+Les tests suivants ont été réalisés :
+
+* formulaire complètement vide ;
+* année de publication invalide ;
+* exemplaires disponibles supérieurs au total ;
+* conservation des valeurs saisies ;
+* affichage des erreurs sous les champs ;
+* création valide ;
+* modification valide ;
+* suppression ;
+* redirection après opération réussie.
+
+---
+
+# Partie C — Persistance JDBC + DAO générique
+
+## C.1 — Interface `GenericDAO`
+
+L'interface est située dans :
+
+```text
+src/main/java/com/bibliotech/dao/GenericDAO.java
+```
+
+Elle définit les opérations communes aux DAO :
+
+```java
+public interface GenericDAO<T, ID> {
+    List<T> findAll();
+    Optional<T> findById(ID id);
+    void save(T entity);
+    void update(ID id, T entity);
+    void delete(ID id);
+}
+```
+
+Cette interface est générique grâce aux paramètres :
+
+```text
+T
+ID
+```
+
+Elle peut donc être utilisée avec plusieurs entités et plusieurs types d'identifiants.
+
+---
+
+### Q C.1 — Pourquoi créer cette interface paramétrée dès le premier DAO ?
+
+La première raison est de définir une structure commune pour les opérations CRUD utilisées par les différents DAO.
+
+La deuxième raison est de pouvoir réutiliser cette structure pour plusieurs entités sans réécrire la même interface.
+
+Dans BiblioTech :
+
+```java
+GenericDAO<Livre, Long>
+```
+
+est utilisé par `LivreDAO`.
+
+Et :
+
+```java
+GenericDAO<Emprunt, Long>
+```
+
+est utilisé par `EmpruntDAO`.
+
+L'interface permet donc de factoriser la structure commune tout en conservant des types adaptés à chaque entité.
+
+---
+
+## C.2 — Implémentations `LivreDAO` et `EmpruntDAO`
+
+### `LivreDAO`
+
+La classe est située dans :
+
+```text
+src/main/java/com/bibliotech/dao/LivreDAO.java
+```
+
+Elle implémente :
+
+```java
+GenericDAO<Livre, Long>
+```
+
+Elle réalise les opérations :
+
+* `findAll()` ;
+* `findById()` ;
+* `save()` ;
+* `update()` ;
+* `delete()`.
+
+Les requêtes SQL utilisent `PreparedStatement`.
+
+Les ressources JDBC sont gérées avec `try-with-resources`.
+
+### `EmpruntDAO`
+
+La classe est située dans :
+
+```text
+src/main/java/com/bibliotech/dao/EmpruntDAO.java
+```
+
+Elle implémente :
+
+```java
+GenericDAO<Emprunt, Long>
+```
+
+Elle réalise les opérations CRUD sur les emprunts.
+
+Elle contient également :
+
+```java
+List<Emprunt> findEnRetard()
+```
+
+Cette méthode recherche les emprunts dont :
+
+* la date de retour prévue est dépassée ;
+* la date de retour effective est `null`.
+
+### Gestion des ressources JDBC
+
+Les connexions, `PreparedStatement` et `ResultSet` sont gérés avec `try-with-resources`.
+
+Cela permet leur fermeture automatique après utilisation.
+
+---
+
+### Q C.2 — Pourquoi `PreparedStatement` est-il préféré à `Statement` ?
+
+`PreparedStatement` permet de séparer la requête SQL des valeurs fournies par l'utilisateur.
+
+Par exemple :
+
+```java
+PreparedStatement statement =
+        connection.prepareStatement(
+            "SELECT * FROM livre WHERE id = ?"
+        );
+
+statement.setLong(1, id);
+```
+
+Cela réduit notamment les risques d'injection SQL.
+
+Le deuxième avantage est que la même requête paramétrée peut être préparée et utilisée avec différentes valeurs sans construire la requête par concaténation.
+
+---
+
+## C.3 — Transaction sur l'opération « emprunter »
+
+La méthode :
+
+```java
+enregistrerEmprunt(long livreId, long etudiantId, int dureeJours)
+```
+
+est implémentée dans `EmpruntDAO`.
+
+Elle réalise les opérations suivantes dans une même transaction :
+
+1. récupérer le livre ;
+2. vérifier qu'il existe ;
+3. vérifier qu'il possède au moins un exemplaire disponible ;
+4. diminuer le nombre d'exemplaires disponibles ;
+5. créer l'emprunt ;
+6. enregistrer le statut `EnCours`.
+
+La transaction commence avec :
+
+```java
+connection.setAutoCommit(false);
+```
+
+Si toutes les opérations réussissent :
+
+```java
+connection.commit();
+```
+
+En cas d'erreur :
+
+```java
+connection.rollback();
+```
+
+Une exception métier dédiée :
+
+```text
+LivreIndisponibleException
+```
+
+est utilisée lorsque le stock disponible est égal à zéro.
+
+Cette organisation permet d'éviter qu'une partie seulement de l'opération soit enregistrée dans la base.
+
+---
+
+### Q C.3 — Que se passe-t-il sans `setAutoCommit(false)` ?
+
+Par défaut, JDBC utilise l'auto-commit.
+
+Cela signifie que les opérations SQL sont validées automatiquement.
+
+Si la diminution du stock est réussie puis qu'une exception se produit avant l'INSERT de l'emprunt, la diminution du stock peut rester enregistrée alors que l'emprunt n'a pas été créé.
+
+La base peut donc devenir incohérente : le nombre d'exemplaires disponibles a diminué sans qu'un emprunt correspondant existe.
+
+Avec une transaction, les opérations sont regroupées et `rollback()` permet d'annuler les modifications si une étape échoue.
+
+---
+
+# Tests de compilation
+
+Le projet a été compilé avec :
+
+```bash
+mvn clean package
+```
+
+Le résultat obtenu est :
+
+```text
+BUILD SUCCESS
+```
+
+Le fichier WAR est généré dans :
+
+```text
+target/bibliotech.war
+```
+
+---
+
+# Vérification des fonctionnalités de la Partie B
+
+Les fonctionnalités suivantes ont été testées :
+
+* [x] Affichage de la liste des livres
+* [x] Affichage du détail
+* [x] Création d'un livre
+* [x] Modification d'un livre
+* [x] Suppression d'un livre
+* [x] Validation des champs
+* [x] Conservation des valeurs en cas d'erreur
+* [x] Affichage des erreurs par champ
+* [x] Redirection après création
+* [x] Redirection après modification
+* [x] Redirection après suppression
+* [x] JSP sans scriptlet
+* [x] JSTL
+* [x] Utilisation de `c:out`
+
+---
+
+# État de la Partie C
+
+Le code de la couche DAO et de la gestion des transactions est présent et le projet compile correctement avec Maven.
+
+Les classes suivantes ont été créées :
+
+* [x] `GenericDAO`
+* [x] `LivreDAO`
+* [x] `EmpruntDAO`
+* [x] `LivreIndisponibleException`
+
+Les fonctionnalités de transaction utilisent :
+
+* [x] `setAutoCommit(false)`
+* [x] `commit()`
+* [x] `rollback()`
+* [x] `PreparedStatement`
+* [x] `try-with-resources`
+
+Les tests fonctionnels complets des opérations d'emprunt restent à effectuer avant de considérer toute la Partie C comme entièrement validée.
+
+---
+
+# Bonus
+
+## Bonus 1 — Race condition sur le dernier exemplaire
+
+**État : non réalisé actuellement.**
+
+Le test avec deux threads utilisant simultanément le dernier exemplaire n'a pas encore été implémenté.
+
+La correction avec `SELECT ... FOR UPDATE` ou `SERIALIZABLE` n'a pas encore été ajoutée.
+
+## Bonus 2 — Protection XSS dans la recherche
+
+**État : non réalisé actuellement.**
+
+La fonctionnalité de recherche demandée dans le bonus n'a pas encore été ajoutée.
+
+Le test avec :
+
+```html
+<script>alert('XSS pwned')</script>
+```
+
+n'a donc pas encore été réalisé.
 
 
