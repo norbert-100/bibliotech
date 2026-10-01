@@ -569,6 +569,22 @@ ${fn:escapeXml(titre)}
 Cela permet d'éviter d'insérer directement une valeur utilisateur non échappée dans le HTML.
 
 ---
+### `WEB-INF/emprunts/list.jsp`
+
+Cette JSP affiche les emprunts en cours sous forme de tableau.
+
+Les informations affichées sont :
+
+* livre ;
+* étudiant ;
+* date d'emprunt ;
+* date de retour prévue ;
+* statut ;
+* action de retour.
+
+Seuls les emprunts dont `date_retour_effective` est nulle sont affichés.
+
+Un bouton **Retour** permet d'enregistrer le retour du livre.
 
 ### Q B.2 — Quelle est la différence entre `${livre.titre}` et `<c:out value="${livre.titre}" />` ?
 
