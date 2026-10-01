@@ -243,4 +243,39 @@ Dans notre cas, `StatutEmprunt` autorise uniquement :
 * `EnRetard`
 
 Le compilateur connaît donc toutes les possibilités. Dans un `switch`, il peut vérifier que tous les cas possibles sont traités.
+## A.3 — Pattern matching et calcul de pénalité
+
+La classe `PenaliteCalculator` a été créée dans :
+
+`src/main/java/com/bibliotech/util/PenaliteCalculator.java`
+
+Elle contient la méthode :
+
+`calculerPenalite(StatutEmprunt statut)`
+
+Cette méthode utilise un `switch` avec le pattern matching sur les différents types de `StatutEmprunt`.
+
+Les règles de calcul sont les suivantes :
+
+* `EnCours` : pénalité de `0.00 €` ;
+* `Rendu` sans retard : pénalité de `0.00 €` ;
+* `Rendu` avec retard : `0.50 €` par jour de retard enregistré ;
+* `EnRetard` : `0.50 €` par jour de retard, avec un maximum de 30 jours.
+
+Le calcul de la pénalité pour `EnRetard` est donc limité à 30 jours.
+
+Le `switch` utilise directement les Records de `StatutEmprunt` avec le pattern matching, sans utiliser de `if/else` avec `instanceof`.
+
+### Q A.3 — Pourquoi le compilateur garantit-il que le `switch` est exhaustif sans `default` ?
+
+`StatutEmprunt` est une interface `sealed`. Le compilateur connaît donc les trois implémentations autorisées :
+
+* `EnCours`
+* `Rendu`
+* `EnRetard`
+
+Le `switch` traite ces trois possibilités. Le compilateur peut donc vérifier que tous les cas sont couverts, sans avoir besoin d'un `default`.
+
+Si une nouvelle implémentation `Perdu` était ajoutée à `StatutEmprunt`, le `switch` ne couvrirait plus tous les cas. Le compilateur signalerait alors que le `switch` n'est plus exhaustif et qu'il faut traiter le nouveau cas.
+
 
