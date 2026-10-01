@@ -18,7 +18,8 @@ public class EmpruntDAO implements GenericDAO<Emprunt, Long> {
 
 	    String sql = "SELECT id, livre_id, etudiant_id, date_emprunt, " +
 	                 "date_retour_prevue, date_retour_effective, statut " +
-	                 "FROM emprunt";
+	                 "FROM emprunt " +
+	                 "WHERE date_retour_effective IS NULL";
 
 	    try (Connection connection = DatabaseConnection.get();
 	         PreparedStatement statement = connection.prepareStatement(sql);
@@ -277,9 +278,8 @@ public class EmpruntDAO implements GenericDAO<Emprunt, Long> {
 	}
 
 	public void enregistrerEmprunt(long livreId, long etudiantId, int dureeJours) {
-
-	    String selectSql =
-	            "SELECT exemplaires_disponibles FROM livre WHERE id = ?";
+		String selectSql =
+			    "SELECT exemplaires_disponibles FROM livre WHERE id = ? FOR UPDATE";
 
 	    String updateLivreSql =
 	            "UPDATE livre SET exemplaires_disponibles = exemplaires_disponibles - 1 WHERE id = ?";
@@ -348,6 +348,22 @@ public class EmpruntDAO implements GenericDAO<Emprunt, Long> {
 	            connection.rollback();
 	            throw e;
 	        }
+
+	    } catch (SQLException e) {
+	        throw new RuntimeException(e);
+	    }
+	}
+	public void augmenterStock(long livreId) {
+	    String sql =
+	        "UPDATE livre " +
+	        "SET exemplaires_disponibles = exemplaires_disponibles + 1 " +
+	        "WHERE id = ?";
+
+	    try (Connection connection = DatabaseConnection.get();
+	         PreparedStatement statement = connection.prepareStatement(sql)) {
+
+	        statement.setLong(1, livreId);
+	        statement.executeUpdate();
 
 	    } catch (SQLException e) {
 	        throw new RuntimeException(e);

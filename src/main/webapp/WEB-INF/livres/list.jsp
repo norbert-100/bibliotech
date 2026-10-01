@@ -91,6 +91,11 @@
 </head>
 
 <body>
+<c:if test="${param.error == 'indisponible'}">
+    <p style="color: red; text-align: center;">
+        Le livre n'est plus disponible.
+    </p>
+</c:if>
 
 <div class="container">
 
@@ -101,7 +106,24 @@
         Ajouter un livre
     </a>
 </div>
+<form method="get"
+      action="${pageContext.request.contextPath}/livres"
+      style="text-align:center; margin:20px;">
 
+    <input type="text"
+           name="q"
+           placeholder="Rechercher un livre">
+
+    <button type="submit">
+        Rechercher
+    </button>
+</form>
+
+<c:if test="${not empty param.q}">
+    <p style="text-align:center;">
+        Résultats pour : <c:out value="${param.q}" />
+    </p>
+</c:if>
     <table>
 
         <thead>
@@ -148,6 +170,26 @@
            href="${pageContext.request.contextPath}/livres/${livre.id()}/edit">
             Modifier
         </a>
+        <form method="post"
+      action="${pageContext.request.contextPath}/emprunts/nouveau"
+      style="display:inline;">
+
+    <input type="hidden"
+           name="livreId"
+           value="${livre.id()}" />
+
+    <input type="hidden"
+           name="etudiantId"
+           value="1" />
+
+    <input type="hidden"
+           name="dureeJours"
+           value="14" />
+
+    <button class="btn" type="submit">
+        Emprunter
+    </button>
+</form>
 
         <form method="post"
               action="${pageContext.request.contextPath}/livres/${livre.id()}/delete"
