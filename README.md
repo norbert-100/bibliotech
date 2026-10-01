@@ -1034,4 +1034,148 @@ Le fichier WAR généré est :
 
 target/bibliotech.war
 
+# Bonus — Réalisation
+
+## Bonus 1 — Race condition
+
+### 1. Reproduction du problème
+
+J’ai créé une classe `RaceConditionTest` dans `src/test/java` afin de lancer deux threads en parallèle qui appellent `enregistrerEmprunt()` sur le même livre.
+
+Le livre testé possédait initialement **1 exemplaire disponible**.
+
+Avant la correction avec `FOR UPDATE`, les deux emprunts pouvaient être enregistrés simultanément alors qu’un seul exemplaire était disponible.
+
+Résultat observé :
+
+```text
+Emprunt 2 réussi
+Emprunt 1 réussi
+```
+
+La base de données contenait alors deux emprunts pour un seul exemplaire disponible.
+
+### 2. Correction mise en place
+
+J’ai utilisé un verrouillage pessimiste PostgreSQL avec `SELECT ... FOR UPDATE`.
+
+Dans `EmpruntDAO`, la requête de vérification du stock est devenue :
+
+```java
+String selectSql =
+    "SELECT exemplaires_disponibles FROM livre WHERE id = ? FOR UPDATE";
+```
+
+Le verrou est pris avant la vérification du stock et reste actif pendant la transaction.
+
+### 3. Résultat après correction
+
+Après avoir remis le stock du livre à `1`, j’ai relancé les deux threads en parallèle.
+
+Résultat obtenu :
+
+```text
+Emprunt 2 réussi
+Emprunt 1 échoué : Le livre n'est plus disponible
+```
+
+La base contient alors **un seul emprunt** et le stock est à `0`.
+
+La correction avec `FOR UPDATE` permet donc d'empêcher les deux transactions de valider simultanément le dernier exemplaire disponible.
+
+### 4. Transaction
+
+La méthode `enregistrerEmprunt()` utilise également une transaction JDBC :
+
+```java
+connection.setAutoCommit(false);
+```
+
+Puis :
+
+```java
+connection.commit();
+```
+
+en cas de succès, et :
+
+```java
+connection.rollback();
+```
+
+en cas d'erreur.
+
+Cela garantit que la diminution du stock et la création de l'emprunt sont réalisées dans la même transaction.
+
+---
+
+## Bonus 2 — XSS
+
+### 1. Reproduction de la faille
+
+J’ai ajouté une recherche de livre avec le paramètre `q`.
+
+Dans un premier temps, la valeur était affichée directement dans la JSP :
+
+```jsp
+Résultats pour : ${param.q}
+```
+
+J’ai testé la valeur suivante :
+
+```text
+<script>alert('XSS pwned')</script>
+```
+
+Le JavaScript a été exécuté dans le navigateur et l’alerte `XSS pwned` est apparue.
+
+La faille XSS a donc bien été reproduite.
+
+### 2. Correction
+
+J’ai remplacé l'affichage direct par `c:out` :
+
+```jsp
+Résultats pour : <c:out value="${param.q}" />
+```
+
+J’ai ensuite effectué le même test avec :
+
+```text
+<script>alert('XSS pwned')</script>
+```
+
+Cette fois, le script n'est plus exécuté.
+
+Il est affiché comme du texte :
+
+```text
+Résultats pour : <script>alert('XSS pwned')</script>
+```
+
+La correction permet donc d'échapper le contenu provenant du paramètre utilisateur avant son affichage dans la page.
+
+### 3. Autres données affichées
+
+Les autres données dynamiques utilisées dans les JSP sont également échappées.
+
+Par exemple, dans `list.jsp`, les informations des livres sont affichées avec :
+
+```jsp
+<c:out value="${livre.titre()}" />
+```
+
+Dans `detail.jsp`, les informations du livre utilisent également `c:out`.
+
+Dans `form.jsp`, les valeurs réinjectées dans les champs utilisent :
+
+```jsp
+${fn:escapeXml(titre)}
+```
+
+Les messages d'erreur sont eux aussi affichés avec `c:out`.
+
+Ainsi, les données provenant de l'utilisateur ne sont pas réinjectées directement dans le HTML sans échappement.
+
+
 
