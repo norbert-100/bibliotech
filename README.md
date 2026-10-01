@@ -724,300 +724,298 @@ Les tests suivants ont été réalisés :
 
 ---
 
-# Partie C — Persistance JDBC + DAO générique
+Partie C — JDBC + Generic DAO (35 pts)
+C.1 — GenericDAO (5 pts)
+Réalisation
 
-## C.1 — Interface `GenericDAO`
+L'objectif de cette partie est de créer une interface générique permettant de définir les opérations communes aux différents DAO de l'application.
 
-L'interface est située dans :
+J'ai créé l'interface GenericDAO<T, ID> dans le package :
 
-```text
-src/main/java/com/bibliotech/dao/GenericDAO.java
-```
+src/main/java/com/bibliotech/dao/
 
-Elle définit les opérations communes aux DAO :
+Le fichier GenericDAO.java contient :
 
-```java
+package com.bibliotech.dao;
+
+import java.util.List;
+import java.util.Optional;
+
 public interface GenericDAO<T, ID> {
+
     List<T> findAll();
+
     Optional<T> findById(ID id);
+
     void save(T entity);
+
     void update(ID id, T entity);
+
     void delete(ID id);
 }
-```
+Explication
 
-Cette interface est générique grâce aux paramètres :
+L'interface utilise deux paramètres génériques :
 
-```text
-T
-ID
-```
+T représente le type de l'entité manipulée.
+ID représente le type de son identifiant.
 
-Elle peut donc être utilisée avec plusieurs entités et plusieurs types d'identifiants.
-
----
-
-### Q C.1 — Pourquoi créer cette interface paramétrée dès le premier DAO ?
-
-La première raison est de définir une structure commune pour les opérations CRUD utilisées par les différents DAO.
-
-La deuxième raison est de pouvoir réutiliser cette structure pour plusieurs entités sans réécrire la même interface.
-
-Dans BiblioTech :
-
-```java
-GenericDAO<Livre, Long>
-```
-
-est utilisé par `LivreDAO`.
-
-Et :
-
-```java
-GenericDAO<Emprunt, Long>
-```
-
-est utilisé par `EmpruntDAO`.
-
-L'interface permet donc de factoriser la structure commune tout en conservant des types adaptés à chaque entité.
-
----
-
-## C.2 — Implémentations `LivreDAO` et `EmpruntDAO`
-
-### `LivreDAO`
-
-La classe est située dans :
-
-```text
-src/main/java/com/bibliotech/dao/LivreDAO.java
-```
-
-Elle implémente :
-
-```java
-GenericDAO<Livre, Long>
-```
-
-Elle réalise les opérations :
-
-* `findAll()` ;
-* `findById()` ;
-* `save()` ;
-* `update()` ;
-* `delete()`.
-
-Les requêtes SQL utilisent `PreparedStatement`.
-
-Les ressources JDBC sont gérées avec `try-with-resources`.
-
-### `EmpruntDAO`
-
-La classe est située dans :
-
-```text
-src/main/java/com/bibliotech/dao/EmpruntDAO.java
-```
-
-Elle implémente :
-
-```java
-GenericDAO<Emprunt, Long>
-```
-
-Elle réalise les opérations CRUD sur les emprunts.
-
-Elle contient également :
-
-```java
-List<Emprunt> findEnRetard()
-```
-
-Cette méthode recherche les emprunts dont :
-
-* la date de retour prévue est dépassée ;
-* la date de retour effective est `null`.
-
-### Gestion des ressources JDBC
-
-Les connexions, `PreparedStatement` et `ResultSet` sont gérés avec `try-with-resources`.
-
-Cela permet leur fermeture automatique après utilisation.
-
----
-
-### Q C.2 — Pourquoi `PreparedStatement` est-il préféré à `Statement` ?
-
-`PreparedStatement` permet de séparer la requête SQL des valeurs fournies par l'utilisateur.
+Cela permet de réutiliser la même interface pour plusieurs entités.
 
 Par exemple :
 
-```java
-PreparedStatement statement =
-        connection.prepareStatement(
-            "SELECT * FROM livre WHERE id = ?"
-        );
+LivreDAO implements GenericDAO<Livre, Long>
 
-statement.setLong(1, id);
-```
+et :
 
-Cela réduit notamment les risques d'injection SQL.
+EmpruntDAO implements GenericDAO<Emprunt, Long>
 
-Le deuxième avantage est que la même requête paramétrée peut être préparée et utilisée avec différentes valeurs sans construire la requête par concaténation.
+Les méthodes communes sont donc définies une seule fois dans GenericDAO.
 
----
+Question C.1
 
-## C.3 — Transaction sur l'opération « emprunter »
+Pourquoi créer une interface paramétrée GenericDAO<T, ID> dès le premier DAO plutôt qu'une classe concrète ? Donnez deux raisons.
 
-La méthode :
+Réponse C.1
 
-```java
-enregistrerEmprunt(long livreId, long etudiantId, int dureeJours)
-```
+Premièrement, une interface générique permet de réutiliser le même contrat pour plusieurs entités, comme Livre et Emprunt, sans recopier la définition des méthodes communes.
 
-est implémentée dans `EmpruntDAO`.
+Deuxièmement, les paramètres T et ID permettent d'avoir un code type-safe : chaque DAO travaille avec le bon type d'entité et le bon type d'identifiant, tout en gardant une architecture commune.
 
-Elle réalise les opérations suivantes dans une même transaction :
+C.2 — LivreDAO / EmpruntDAO (15 pts)
+Réalisation
 
-1. récupérer le livre ;
-2. vérifier qu'il existe ;
-3. vérifier qu'il possède au moins un exemplaire disponible ;
-4. diminuer le nombre d'exemplaires disponibles ;
-5. créer l'emprunt ;
-6. enregistrer le statut `EnCours`.
+Après avoir créé GenericDAO, j'ai créé les DAO correspondant aux entités utilisées dans l'application.
+
+Les fichiers sont placés dans :
+
+src/main/java/com/bibliotech/dao/
+LivreDAO
+
+LivreDAO implémente :
+
+GenericDAO<Livre, Long>
+
+Il contient les opérations demandées :
+
+findAll() : récupérer tous les livres.
+findById(Long id) : récupérer un livre par son identifiant.
+save(Livre livre) : ajouter un livre.
+update(Long id, Livre livre) : modifier un livre.
+delete(Long id) : supprimer un livre.
+EmpruntDAO
+
+EmpruntDAO implémente :
+
+GenericDAO<Emprunt, Long>
+
+Il contient également les opérations :
+
+findAll()
+findById(Long id)
+save(Emprunt emprunt)
+update(Long id, Emprunt emprunt)
+delete(Long id)
+
+J'ai également ajouté la méthode demandée par le TP :
+
+findEnRetard()
+
+Cette méthode permet de rechercher les emprunts dont la date de retour prévue est dépassée et dont le retour effectif est encore null.
+
+Utilisation de PreparedStatement
+
+Toutes les requêtes SQL des DAO utilisent PreparedStatement.
+
+Par exemple :
+
+String sql = "SELECT * FROM livre WHERE id = ?";
+
+try (Connection connection = DatabaseConnection.get();
+     PreparedStatement statement = connection.prepareStatement(sql)) {
+
+    statement.setLong(1, id);
+
+    try (ResultSet resultSet = statement.executeQuery()) {
+        // lecture du résultat
+    }
+}
+
+Les paramètres sont donc transmis avec setLong(), setString(), etc., et non avec une concaténation de chaînes.
+
+Fermeture des ressources
+
+Les connexions JDBC, les PreparedStatement et les ResultSet sont gérés avec :
+
+try-with-resources
+
+Cela permet de fermer automatiquement les ressources après leur utilisation.
+
+Question C.2
+
+Pourquoi PreparedStatement est-il systématiquement préféré à Statement ? Donnez deux avantages principaux.
+
+Réponse C.2
+
+PreparedStatement permet premièrement de séparer la requête SQL des valeurs fournies par l'utilisateur, ce qui permet notamment de limiter les risques d'injection SQL.
+
+Deuxièmement, il permet de paramétrer proprement les requêtes avec des ? et des méthodes comme setString() ou setLong(), ce qui rend le code plus propre et plus sûr.
+
+C.3 — Transaction pour enregistrer un emprunt (15 pts)
+Réalisation
+
+La méthode demandée par le TP est :
+
+public void enregistrerEmprunt(
+    long livreId,
+    long etudiantId,
+    int dureeJours
+);
+
+Cette méthode se trouve dans EmpruntDAO.
+
+L'objectif est de réaliser plusieurs opérations dans une seule transaction.
+
+Étape 1 — Désactiver l'auto-commit
 
 La transaction commence avec :
 
-```java
 connection.setAutoCommit(false);
-```
 
-Si toutes les opérations réussissent :
+Cela signifie que les opérations SQL ne sont pas validées automatiquement une par une.
 
-```java
+Étape 2 — Vérifier le livre
+
+Le livre est recherché à partir de son identifiant.
+
+Il faut vérifier :
+
+que le livre existe ;
+que le nombre d'exemplaires disponibles est supérieur à zéro.
+
+Si le livre n'existe pas, l'emprunt ne peut pas être enregistré.
+
+Étape 3 — Vérifier le stock
+
+Si :
+
+exemplaires_disponibles == 0
+
+le prêt est impossible.
+
+Une exception dédiée est utilisée :
+
+LivreIndisponibleException
+Étape 4 — Diminuer le stock
+
+Lorsqu'un exemplaire est disponible, le nombre d'exemplaires disponibles est diminué de 1.
+
+Étape 5 — Créer l'emprunt
+
+Un nouvel emprunt est ensuite enregistré avec :
+
+l'identifiant du livre ;
+l'identifiant de l'étudiant ;
+la date d'emprunt ;
+la date de retour prévue ;
+le statut EnCours.
+
+La date de retour prévue est calculée à partir de dureeJours.
+
+Étape 6 — Valider la transaction
+
+Si toutes les opérations se terminent correctement :
+
 connection.commit();
-```
+
+La transaction est alors validée.
+
+Étape 7 — Annuler en cas d'erreur
+
+Si une erreur survient pendant une des opérations :
+
+connection.rollback();
+
+est exécuté.
+
+Cela permet d'annuler les modifications déjà effectuées dans la transaction.
+
+Principe de la transaction
+
+Le fonctionnement est donc :
+
+Début transaction
+       ↓
+Vérification du livre
+       ↓
+Vérification du stock
+       ↓
+Diminution du stock
+       ↓
+Insertion de l'emprunt
+       ↓
+     commit()
 
 En cas d'erreur :
 
-```java
-connection.rollback();
-```
+Erreur
+  ↓
+rollback()
+  ↓
+Annulation des modifications
+Question C.3
 
-Une exception métier dédiée :
+Que se passe-t-il sans setAutoCommit(false) si une exception survient entre la mise à jour du stock et l'insertion de l'emprunt ?
 
-```text
-LivreIndisponibleException
-```
+Réponse C.3
 
-est utilisée lorsque le stock disponible est égal à zéro.
+Sans setAutoCommit(false), chaque requête SQL peut être validée automatiquement.
 
-Cette organisation permet d'éviter qu'une partie seulement de l'opération soit enregistrée dans la base.
+Si la diminution du stock réussit mais qu'une exception survient avant l'insertion de l'emprunt, la diminution du stock peut rester enregistrée alors que l'emprunt n'a pas été créé.
 
----
+La transaction permet donc de garantir que les opérations sont réalisées ensemble : soit toutes réussissent avec commit(), soit elles sont annulées avec rollback().
 
-### Q C.3 — Que se passe-t-il sans `setAutoCommit(false)` ?
+Tests de la Partie C
+Test de GenericDAO
 
-Par défaut, JDBC utilise l'auto-commit.
+La présence de l'interface GenericDAO<T, ID> a été vérifiée avec :
 
-Cela signifie que les opérations SQL sont validées automatiquement.
+LivreDAO implements GenericDAO<Livre, Long>
+EmpruntDAO implements GenericDAO<Emprunt, Long>
 
-Si la diminution du stock est réussie puis qu'une exception se produit avant l'INSERT de l'emprunt, la diminution du stock peut rester enregistrée alors que l'emprunt n'a pas été créé.
+Les deux DAO utilisent donc le même contrat générique.
 
-La base peut donc devenir incohérente : le nombre d'exemplaires disponibles a diminué sans qu'un emprunt correspondant existe.
+Test de LivreDAO
 
-Avec une transaction, les opérations sont regroupées et `rollback()` permet d'annuler les modifications si une étape échoue.
+Les opérations suivantes ont été implémentées :
 
----
+récupération de tous les livres ;
+recherche d'un livre par son ID ;
+ajout d'un livre ;
+modification d'un livre ;
+suppression d'un livre.
+Test de EmpruntDAO
 
-# Tests de compilation
+Les opérations suivantes ont été implémentées :
 
-Le projet a été compilé avec :
+récupération des emprunts ;
+recherche par ID ;
+ajout ;
+modification ;
+suppression ;
+recherche des emprunts en retard.
+Test Maven
 
-```bash
+La compilation et la génération du WAR ont été vérifiées avec :
+
 mvn clean package
-```
 
-Le résultat obtenu est :
+Résultat :
 
-```text
 BUILD SUCCESS
-```
 
-Le fichier WAR est généré dans :
+Le fichier WAR généré est :
 
-```text
 target/bibliotech.war
-```
-
----
-
-# Vérification des fonctionnalités de la Partie B
-
-Les fonctionnalités suivantes ont été testées :
-
-* [x] Affichage de la liste des livres
-* [x] Affichage du détail
-* [x] Création d'un livre
-* [x] Modification d'un livre
-* [x] Suppression d'un livre
-* [x] Validation des champs
-* [x] Conservation des valeurs en cas d'erreur
-* [x] Affichage des erreurs par champ
-* [x] Redirection après création
-* [x] Redirection après modification
-* [x] Redirection après suppression
-* [x] JSP sans scriptlet
-* [x] JSTL
-* [x] Utilisation de `c:out`
-
----
-
-# État de la Partie C
-
-Le code de la couche DAO et de la gestion des transactions est présent et le projet compile correctement avec Maven.
-
-Les classes suivantes ont été créées :
-
-* [x] `GenericDAO`
-* [x] `LivreDAO`
-* [x] `EmpruntDAO`
-* [x] `LivreIndisponibleException`
-
-Les fonctionnalités de transaction utilisent :
-
-* [x] `setAutoCommit(false)`
-* [x] `commit()`
-* [x] `rollback()`
-* [x] `PreparedStatement`
-* [x] `try-with-resources`
-
-Les tests fonctionnels complets des opérations d'emprunt restent à effectuer avant de considérer toute la Partie C comme entièrement validée.
-
----
-
-# Bonus
-
-## Bonus 1 — Race condition sur le dernier exemplaire
-
-**État : non réalisé actuellement.**
-
-Le test avec deux threads utilisant simultanément le dernier exemplaire n'a pas encore été implémenté.
-
-La correction avec `SELECT ... FOR UPDATE` ou `SERIALIZABLE` n'a pas encore été ajoutée.
-
-## Bonus 2 — Protection XSS dans la recherche
-
-**État : non réalisé actuellement.**
-
-La fonctionnalité de recherche demandée dans le bonus n'a pas encore été ajoutée.
-
-Le test avec :
-
-```html
-<script>alert('XSS pwned')</script>
-```
-
-n'a donc pas encore été réalisé.
 
 
