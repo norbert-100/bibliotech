@@ -146,3 +146,101 @@ Les informations sensibles doivent donc être externalisées.
 
 1. Utiliser un fichier de configuration externe qui n'est pas envoyé sur GitHub.
 2. Utiliser un gestionnaire de secrets.
+
+# Partie A — Fondations Java moderne
+
+## A.1 — Modèles de données avec Records
+
+Trois Records ont été créés dans le package :
+
+`src/main/java/com/bibliotech/model/`
+
+### `Livre`
+
+Le Record `Livre` contient les informations suivantes :
+
+* `id`
+* `titre`
+* `auteur`
+* `anneePublication`
+* `exemplairesTotal`
+* `exemplairesDisponibles`
+
+Un constructeur compact vérifie les contraintes demandées :
+
+* le titre ne doit pas être nul ou vide ;
+* l'auteur ne doit pas être nul ou vide ;
+* l'année de publication doit être comprise entre 1500 et l'année actuelle ;
+* le nombre d'exemplaires disponibles ne doit pas dépasser le nombre total.
+
+### `Etudiant`
+
+Le Record `Etudiant` contient :
+
+* `id`
+* `numeroEtudiant`
+* `nom`
+* `prenom`
+* `email`
+
+Les validations suivantes sont effectuées :
+
+* le numéro étudiant ne doit pas être nul ou vide ;
+* le numéro étudiant doit respecter le format `[A-Z]{2}\d{6}` ;
+* le nom ne doit pas être nul ou vide ;
+* le prénom ne doit pas être nul ou vide ;
+* l'email ne doit pas être nul ou vide ;
+* l'email doit contenir `@`.
+
+### `Emprunt`
+
+Le Record `Emprunt` contient :
+
+* `id`
+* `livreId`
+* `etudiantId`
+* `dateEmprunt`
+* `dateRetourPrevue`
+* `dateRetourEffective`
+* `statut`
+
+Les validations suivantes sont effectuées :
+
+* `dateEmprunt` ne doit pas être nulle ;
+* `dateRetourPrevue` ne doit pas être nulle ;
+* `statut` ne doit pas être nul.
+
+### Q A.1 — Pourquoi un Record est-il immutable par défaut ?
+
+Un Record possède des composants qui sont `final`. Ils ne peuvent donc pas être modifiés après la création du Record.
+
+Dans une application web, plusieurs threads peuvent exécuter le même Servlet en même temps. Des objets immuables peuvent être partagés entre plusieurs threads sans modifier leur état, ce qui facilite la gestion de la concurrence.
+
+---
+
+## A.2 — Sealed interface
+
+L'interface `StatutEmprunt` a été créée avec le mot-clé `sealed`.
+
+Elle autorise uniquement trois implémentations :
+
+* `EnCours`
+* `Rendu`
+* `EnRetard`
+
+Ces trois implémentations sont des Records imbriqués dans `StatutEmprunt`.
+
+### Q A.2 — Quelle différence entre une interface classique et une interface `sealed` ?
+
+Une interface classique peut être implémentée par n'importe quelle classe ou record.
+
+Une interface `sealed` limite les classes ou records qui peuvent l'implémenter grâce au mot-clé `permits`.
+
+Dans notre cas, `StatutEmprunt` autorise uniquement :
+
+* `EnCours`
+* `Rendu`
+* `EnRetard`
+
+Le compilateur connaît donc toutes les possibilités. Dans un `switch`, il peut vérifier que tous les cas possibles sont traités.
+
