@@ -26,6 +26,7 @@ Projet réalisé dans le cadre du TP 01 BiblioTech.
 ---
 
 # Arborescence principale
+```
 bibliotech/
 │
 ├── sql/
@@ -64,6 +65,7 @@ bibliotech/
 │
 ├── pom.xml
 └── README.md
+```
 ---
 
 # Partie 0 — Mise en place
